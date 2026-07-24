@@ -2,9 +2,13 @@
 # Run from repo root in PowerShell (or: powershell -ExecutionPolicy Bypass -File .\scripts\restart-event-services.ps1)
 
 $ErrorActionPreference = "Stop"
-$env:JAVA_HOME = if ($env:JAVA_HOME) { $env:JAVA_HOME } else { "C:\Program Files\Java\jdk-22" }
+$jdk22 = "C:\Program Files\Java\jdk-22"
+if (Test-Path "$jdk22\bin\java.exe") { $env:JAVA_HOME = $jdk22 }
+elseif (-not $env:JAVA_HOME) { $env:JAVA_HOME = $jdk22 }
 $env:Path = "$env:JAVA_HOME\bin;C:\Program Files\Apache\maven\bin;" + $env:Path
 $root = Split-Path -Parent $PSScriptRoot
+$javaHome = $env:JAVA_HOME
+Write-Host "Using JAVA_HOME=$javaHome" -ForegroundColor Cyan
 
 foreach ($port in 8082, 8083, 8084, 8085) {
     $conn = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -27,10 +31,10 @@ function Start-Svc([string]$name, [string]$pom) {
     Write-Host "Starting $name..." -ForegroundColor Cyan
     $cmd = @"
 cd '$root'
-`$env:JAVA_HOME='$env:JAVA_HOME'
-`$env:Path='$env:JAVA_HOME\bin;C:\Program Files\Apache\maven\bin;' + `$env:Path
+`$env:JAVA_HOME='$javaHome'
+`$env:Path='$javaHome\bin;C:\Program Files\Apache\maven\bin;' + `$env:Path
 Write-Host '=== $name ===' -ForegroundColor Green
-mvn -f $pom spring-boot:run
+mvn -f $pom clean spring-boot:run
 "@
     Start-Process powershell -ArgumentList "-NoExit", "-Command", $cmd
     Start-Sleep -Seconds 2

@@ -66,3 +66,8 @@ tools/
 *.tmp
 *.bak
 .cursor/mcp.json
+
+# Allow committed env templates
+!.env.example
+!.env.*.example
+

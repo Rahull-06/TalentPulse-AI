@@ -1,15 +1,19 @@
 package com.talentpulse.candidate.config;
 
-import lombok.Getter;
-import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-@Getter
-@Setter
 @Component
 @ConfigurationProperties(prefix = "talentpulse.security.jwt")
 public class JwtProperties {
 
     private String secret;
+
+    public String getSecret() {
+        return secret;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
 }
