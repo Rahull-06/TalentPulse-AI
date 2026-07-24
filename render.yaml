@@ -74,6 +74,8 @@ services:
         sync: false
       - key: RABBITMQ_PASSWORD
         sync: false
+      - key: RABBITMQ_VHOST
+        sync: false
 
   - type: web
     name: talentpulse-job
@@ -117,6 +119,8 @@ services:
       - key: RABBITMQ_USER
         sync: false
       - key: RABBITMQ_PASSWORD
+        sync: false
+      - key: RABBITMQ_VHOST
         sync: false
 
   - type: web
@@ -162,6 +166,8 @@ services:
         sync: false
       - key: RABBITMQ_PASSWORD
         sync: false
+      - key: RABBITMQ_VHOST
+        sync: false
 
   - type: web
     name: talentpulse-scoring
@@ -206,6 +212,8 @@ services:
         sync: false
       - key: RABBITMQ_PASSWORD
         sync: false
+      - key: RABBITMQ_VHOST
+        sync: false
 
   - type: web
     name: talentpulse-notification
@@ -249,6 +257,8 @@ services:
       - key: RABBITMQ_USER
         sync: false
       - key: RABBITMQ_PASSWORD
+        sync: false
+      - key: RABBITMQ_VHOST
         sync: false
 
 databases:

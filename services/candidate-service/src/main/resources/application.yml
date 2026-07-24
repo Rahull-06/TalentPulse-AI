@@ -36,6 +36,11 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:talentpulse}
     password: ${RABBITMQ_PASSWORD:talentpulse}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        missing-queues-fatal: false
+        possible-authentication-failure-fatal: false
 
 talentpulse:
   security:
