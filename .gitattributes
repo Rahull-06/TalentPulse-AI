@@ -1,0 +1,3 @@
+# Shell scripts must stay LF for Linux containers (Render/Docker)
+*.sh text eol=lf
+infra/docker/java-entrypoint.sh text eol=lf
