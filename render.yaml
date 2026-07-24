@@ -4,12 +4,7 @@
 # Before apply:
 # 1) Create a free CloudAMQP instance → copy host / user / password
 # 2) You will paste those when Render prompts (sync: false)
-# 3) After first Postgres is up, open its Shell and run:
-#      CREATE DATABASE talentpulse_auth;
-#      CREATE DATABASE talentpulse_job;
-#      CREATE DATABASE talentpulse_candidate;
-#      CREATE DATABASE talentpulse_scoring;
-#      CREATE DATABASE talentpulse_notification;
+# 3) All services share the single Render Postgres database (no CREATE DATABASE needed)
 #
 # Then deploy Vercel frontend with:
 #   NEXT_PUBLIC_API_URL=https://<talentpulse-gateway>.onrender.com
@@ -48,7 +43,9 @@ services:
       - key: PORT
         value: "10000"
       - key: DB_NAME
-        value: talentpulse_auth
+        fromDatabase:
+          name: talentpulse-db
+          property: database
       - key: DB_HOST
         fromDatabase:
           name: talentpulse-db
@@ -89,7 +86,9 @@ services:
       - key: PORT
         value: "10000"
       - key: DB_NAME
-        value: talentpulse_job
+        fromDatabase:
+          name: talentpulse-db
+          property: database
       - key: DB_HOST
         fromDatabase:
           name: talentpulse-db
@@ -131,7 +130,9 @@ services:
       - key: PORT
         value: "10000"
       - key: DB_NAME
-        value: talentpulse_candidate
+        fromDatabase:
+          name: talentpulse-db
+          property: database
       - key: DB_HOST
         fromDatabase:
           name: talentpulse-db
@@ -173,7 +174,9 @@ services:
       - key: PORT
         value: "10000"
       - key: DB_NAME
-        value: talentpulse_scoring
+        fromDatabase:
+          name: talentpulse-db
+          property: database
       - key: DB_HOST
         fromDatabase:
           name: talentpulse-db
@@ -215,7 +218,9 @@ services:
       - key: PORT
         value: "10000"
       - key: DB_NAME
-        value: talentpulse_notification
+        fromDatabase:
+          name: talentpulse-db
+          property: database
       - key: DB_HOST
         fromDatabase:
           name: talentpulse-db
