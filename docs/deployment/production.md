@@ -2,99 +2,92 @@
 
 TalentPulse is a **monorepo**: Next.js UI + six Spring Boot services + Postgres + RabbitMQ.
 
-| Component | Recommended host | Status |
+| Component | Platform | Link |
 |---|---|---|
-| Frontend (`frontend/`) | [Vercel](https://vercel.com) | Planned |
-| Backend services | [Render](https://render.com) **or** Docker on a VPS | Planned |
-| Postgres / RabbitMQ | Render managed + Render Redis/Rabbit **or** Compose volumes | Planned |
+| Frontend | **Vercel** | Deploy `frontend/` |
+| Backend | **Docker Compose (VPS)** *or* **Render Blueprint** | See below |
+| Repo | GitHub | https://github.com/Rahull-06/TalentPulse-AI |
 
-**Live links** (fill in after first deploy):
-
-- App: _TBD_
-- API health: _TBD_ (`https://<gateway>/actuator/health`)
-- Repo: https://github.com/Rahull-06/TalentPulse-AI
+**Recommendation for this architecture:** run the backend with **`docker-compose.prod.yml`** on a small VPS (or your PC for a demo). Use **Vercel** for the UI. Render works too, but needs paid private services + external RabbitMQ (CloudAMQP).
 
 ---
 
-## Why Vercel + Render (first deploy)
+## A) Frontend → Vercel (do this after API URL exists)
 
-| Choice | Best for |
-|---|---|
-| **Vercel** | Next.js frontend: previews, HTTPS, env vars, zero Node ops |
-| **Render** | Spring Boot jars or Docker images; managed Postgres; less server babysitting |
-
-**Docker Compose on a VPS** is better when you want one bill, one network, and parity with `docker compose` locally — but you own OS updates, TLS, and restarts.
-
-**Recommendation:** ship **Vercel + Render** first; revisit full Docker if you outgrow Render’s multi-service layout.
-
----
-
-## 1) Frontend → Vercel
-
-1. Import `Rahull-06/TalentPulse-AI` in Vercel.
-2. **Root Directory:** `frontend`
+1. Open [vercel.com/new](https://vercel.com/new) → import **Rahull-06/TalentPulse-AI**
+2. **Root Directory** → `frontend` (Configure → edit)
 3. Framework: Next.js (auto)
 4. Environment variable:
 
 | Name | Value |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://<your-gateway-host>` (no trailing slash) |
+| `NEXT_PUBLIC_API_URL` | `https://YOUR_GATEWAY_HOST` (no trailing slash) |
 
-5. Deploy. Open the Vercel URL and confirm Jobs loads against the gateway.
+5. Deploy → copy the `*.vercel.app` URL  
+6. Set that URL as `TALENTPULSE_FRONTEND_URL` on **auth-service** (password-reset links)
 
-CORS on the gateway must allow the Vercel origin (e.g. `https://*.vercel.app` and your custom domain).
-
----
-
-## 2) Backend → Render (suggested layout)
-
-Create (same private network / region):
-
-| Render service | Source | Port |
-|---|---|---:|
-| `talentpulse-gateway` | `services/api-gateway` | 8080 |
-| `talentpulse-auth` | `services/auth-service` | 8081 |
-| `talentpulse-job` | `services/job-service` | 8082 |
-| `talentpulse-candidate` | `services/candidate-service` | 8083 |
-| `talentpulse-scoring` | `services/scoring-service` | 8084 |
-| `talentpulse-notification` | `services/notification-service` | 8085 |
-| PostgreSQL | Managed | 5432 |
-| RabbitMQ | External addon / container | 5672 |
-
-Point gateway env vars at internal service URLs (Render private DNS), for example:
-
-- `TALENTPULSE_AUTH_URL=http://talentpulse-auth:8081`
-- `TALENTPULSE_JOB_URL=http://talentpulse-job:8082`
-- …same pattern for candidate / scoring / notification
-
-Only **gateway** needs a public URL. Put the same JWT secret on every service that validates tokens.
-
-> Dockerfiles per service can be added next; until then, use a Render **Docker** or **native** Java build that runs `mvn -f services/<name>/pom.xml spring-boot:run` / `java -jar`.
+Gateway CORS already allows `https://*.vercel.app`.
 
 ---
 
-## 3) Backend → Docker (alternative)
+## B) Backend → Docker Compose (recommended)
 
-Add one Dockerfile per service (or a multi-stage root build), then on a VPS:
+On a VPS with Docker (or locally to smoke-test production images):
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+git clone https://github.com/Rahull-06/TalentPulse-AI.git
+cd TalentPulse-AI
+# optional: export JWT_SECRET=... POSTGRES_PASSWORD=... RABBITMQ_PASSWORD=... TALENTPULSE_FRONTEND_URL=https://your-app.vercel.app
+docker compose -f docker-compose.prod.yml up -d --build
 ```
 
-Local `docker-compose.yml` today only runs **Postgres + RabbitMQ**. Production Compose would also run the six JVMs (or images) behind a reverse proxy (Caddy / Traefik / Nginx) terminating TLS on `:443` → gateway `:8080`.
+- API: `http://YOUR_SERVER:8080/actuator/health`
+- Put a reverse proxy (Caddy/Nginx) with HTTPS in front of `:8080` for production
+- Point Vercel `NEXT_PUBLIC_API_URL` at that HTTPS gateway URL
+
+This file builds all six services + Postgres + RabbitMQ on one network.
 
 ---
 
-## Checklist before go-live
+## C) Backend → Render Blueprint (alternative)
 
-- [ ] Strong unique `JWT` secret (not the local default)
-- [ ] Postgres passwords rotated from `talentpulse` / `talentpulse`
-- [ ] RabbitMQ credentials rotated
-- [ ] `NEXT_PUBLIC_API_URL` points at HTTPS gateway
-- [ ] Gateway CORS allows the Vercel domain
-- [ ] Auth `frontend-url` (password reset links) points at the Vercel URL
-- [ ] Flyway migrations succeed on empty DBs
-- [ ] Health checks: gateway + each service `/actuator/health`
+1. Create a free [CloudAMQP](https://www.cloudamqp.com/) instance (Little Lemur) — copy host, user, password, port `5672`
+2. Open [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
+3. Connect `Rahull-06/TalentPulse-AI` (uses root `render.yaml`)
+4. When prompted (`sync: false` vars), set for **each** Java private service:
+
+| Variable | Example |
+|---|---|
+| `TALENTPULSE_FRONTEND_URL` | `https://your-app.vercel.app` (auth only) |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://HOST:5432/talentpulse_auth` (change DB name per service) |
+| `SPRING_DATASOURCE_USERNAME` / `PASSWORD` | From Render Postgres |
+| `RABBITMQ_HOST` / `USER` / `PASSWORD` | From CloudAMQP |
+
+5. Create the five logical databases on the Render Postgres once:
+
+```sql
+CREATE DATABASE talentpulse_auth;
+CREATE DATABASE talentpulse_job;
+CREATE DATABASE talentpulse_candidate;
+CREATE DATABASE talentpulse_scoring;
+CREATE DATABASE talentpulse_notification;
+```
+
+6. After deploy, copy the **gateway** public URL → Vercel `NEXT_PUBLIC_API_URL`
+
+> Private services (`pserv`) on Render use the **starter** plan (not free). Free alternative: use Docker Compose on a VPS (section B).
+
+---
+
+## Checklist
+
+- [ ] Strong `JWT_SECRET` (same on every service that validates JWT)
+- [ ] Postgres passwords not left as `talentpulse` in public deploys
+- [ ] `NEXT_PUBLIC_API_URL` = HTTPS gateway
+- [ ] Auth `TALENTPULSE_FRONTEND_URL` = Vercel URL
+- [ ] Gateway CORS allows your frontend origin
+- [ ] `/actuator/health` on gateway returns UP
+- [ ] Jobs page loads from the Vercel URL
 
 ---
 
@@ -102,8 +95,8 @@ Local `docker-compose.yml` today only runs **Postgres + RabbitMQ**. Production C
 
 | | Local | Production |
 |---|---|---|
-| UI | `npm run dev` → `:3000` | Vercel |
-| API | `scripts/start-core-backend.ps1` | Render / Docker |
-| Infra | `docker compose up -d` | Managed or Compose |
+| UI | `npm run dev` | Vercel |
+| API | `scripts/start-core-backend.ps1` | `docker-compose.prod.yml` or Render |
+| Infra | `docker compose up -d` | Included in prod compose / Render+CloudAMQP |
 
 See also: [local-run.md](./local-run.md) · [services/README.md](../../services/README.md)

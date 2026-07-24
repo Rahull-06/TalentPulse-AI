@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 spring:
   application:
@@ -20,6 +20,7 @@ spring:
                 allowedOriginPatterns:
                   - "http://localhost:*"
                   - "http://127.0.0.1:*"
+                  - "https://*.vercel.app"
                   # LAN access (phone / other PC on same Wi‑Fi)
                   - "http://192.168.*.*:*"
                   - "http://10.*.*.*:*"

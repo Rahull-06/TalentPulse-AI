@@ -1,14 +1,14 @@
 server:
-  port: 8083
+  port: ${PORT:8083}
 
 spring:
   application:
     name: candidate-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/talentpulse_candidate
-    username: talentpulse
-    password: talentpulse
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/talentpulse_candidate}
+    username: ${SPRING_DATASOURCE_USERNAME:talentpulse}
+    password: ${SPRING_DATASOURCE_PASSWORD:talentpulse}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -37,7 +37,7 @@ spring:
 talentpulse:
   security:
     jwt:
-      secret: "TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!"
+      secret: ${JWT_SECRET:TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
   storage:
     # Resolved to an absolute path at runtime (avoids Tomcat temp-dir relative paths)
     resume-dir: ${TALENTPULSE_RESUME_DIR:./data/resumes}

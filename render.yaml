@@ -1,0 +1,186 @@
+# TalentPulse — Render Blueprint
+# Dashboard: New → Blueprint → connect this repo → render.yaml
+#
+# Notes:
+# - Gateway is the only public API URL for the frontend (NEXT_PUBLIC_API_URL).
+# - Other Java services are private (same Render region / private network).
+# - Create extra Postgres databases once (see docs/deployment/production.md).
+# - RabbitMQ: use a free CloudAMQP plan and paste host/user/pass below (sync: false),
+#   OR uncomment the rabbitmq private Docker service (paid instance).
+
+services:
+  - type: web
+    name: talentpulse-gateway
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./services/api-gateway/Dockerfile
+    dockerContext: ./services/api-gateway
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: TALENTPULSE_AUTH_URL
+        value: http://talentpulse-auth:10000
+      - key: TALENTPULSE_JOB_URL
+        value: http://talentpulse-job:10000
+      - key: TALENTPULSE_CANDIDATE_URL
+        value: http://talentpulse-candidate:10000
+      - key: TALENTPULSE_SCORING_URL
+        value: http://talentpulse-scoring:10000
+      - key: TALENTPULSE_NOTIFICATION_URL
+        value: http://talentpulse-notification:10000
+
+  - type: pserv
+    name: talentpulse-auth
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./services/auth-service/Dockerfile
+    dockerContext: ./services/auth-service
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TALENTPULSE_FRONTEND_URL
+        sync: false
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: RABBITMQ_HOST
+        sync: false
+      - key: RABBITMQ_PORT
+        value: "5672"
+      - key: RABBITMQ_USER
+        sync: false
+      - key: RABBITMQ_PASSWORD
+        sync: false
+
+  - type: pserv
+    name: talentpulse-job
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./services/job-service/Dockerfile
+    dockerContext: ./services/job-service
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: talentpulse-auth
+          envVarKey: JWT_SECRET
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: RABBITMQ_HOST
+        sync: false
+      - key: RABBITMQ_PORT
+        value: "5672"
+      - key: RABBITMQ_USER
+        sync: false
+      - key: RABBITMQ_PASSWORD
+        sync: false
+
+  - type: pserv
+    name: talentpulse-candidate
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./services/candidate-service/Dockerfile
+    dockerContext: ./services/candidate-service
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: talentpulse-auth
+          envVarKey: JWT_SECRET
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: RABBITMQ_HOST
+        sync: false
+      - key: RABBITMQ_PORT
+        value: "5672"
+      - key: RABBITMQ_USER
+        sync: false
+      - key: RABBITMQ_PASSWORD
+        sync: false
+
+  - type: pserv
+    name: talentpulse-scoring
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./services/scoring-service/Dockerfile
+    dockerContext: ./services/scoring-service
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: talentpulse-auth
+          envVarKey: JWT_SECRET
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: RABBITMQ_HOST
+        sync: false
+      - key: RABBITMQ_PORT
+        value: "5672"
+      - key: RABBITMQ_USER
+        sync: false
+      - key: RABBITMQ_PASSWORD
+        sync: false
+
+  - type: pserv
+    name: talentpulse-notification
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./services/notification-service/Dockerfile
+    dockerContext: ./services/notification-service
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: JWT_SECRET
+        fromService:
+          type: pserv
+          name: talentpulse-auth
+          envVarKey: JWT_SECRET
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: RABBITMQ_HOST
+        sync: false
+      - key: RABBITMQ_PORT
+        value: "5672"
+      - key: RABBITMQ_USER
+        sync: false
+      - key: RABBITMQ_PASSWORD
+        sync: false
+
+databases:
+  - name: talentpulse-db
+    plan: free
+    postgresMajorVersion: "16"

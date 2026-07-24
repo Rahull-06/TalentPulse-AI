@@ -1,14 +1,14 @@
 server:
-  port: 8085
+  port: ${PORT:8085}
 
 spring:
   application:
     name: notification-service
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/talentpulse_notification
-    username: talentpulse
-    password: talentpulse
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/talentpulse_notification}
+    username: ${SPRING_DATASOURCE_USERNAME:talentpulse}
+    password: ${SPRING_DATASOURCE_PASSWORD:talentpulse}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -32,7 +32,7 @@ spring:
 talentpulse:
   security:
     jwt:
-      secret: "TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!"
+      secret: ${JWT_SECRET:TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
   events:
     enabled: true
   mail:

@@ -1,0 +1,152 @@
+# Full production-style stack on one host (VPS / local smoke test).
+# Usage (from repo root):
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# UI still runs on Vercel (or locally). Point NEXT_PUBLIC_API_URL at this host:8080.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: talentpulse
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-talentpulse}
+      POSTGRES_DB: postgres
+    volumes:
+      - tp_pg_data:/var/lib/postgresql/data
+      - ./infra/docker/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talentpulse -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: talentpulse
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-talentpulse}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  auth:
+    build: ./services/auth-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      PORT: "8081"
+      JWT_SECRET: ${JWT_SECRET:-TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
+      TALENTPULSE_FRONTEND_URL: ${TALENTPULSE_FRONTEND_URL:-http://localhost:3000}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/talentpulse_auth
+      SPRING_DATASOURCE_USERNAME: talentpulse
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-talentpulse}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: talentpulse
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
+
+  job:
+    build: ./services/job-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      PORT: "8082"
+      JWT_SECRET: ${JWT_SECRET:-TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/talentpulse_job
+      SPRING_DATASOURCE_USERNAME: talentpulse
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-talentpulse}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: talentpulse
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
+
+  candidate:
+    build: ./services/candidate-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      PORT: "8083"
+      JWT_SECRET: ${JWT_SECRET:-TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/talentpulse_candidate
+      SPRING_DATASOURCE_USERNAME: talentpulse
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-talentpulse}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: talentpulse
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
+
+  scoring:
+    build: ./services/scoring-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      PORT: "8084"
+      JWT_SECRET: ${JWT_SECRET:-TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/talentpulse_scoring
+      SPRING_DATASOURCE_USERNAME: talentpulse
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-talentpulse}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: talentpulse
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
+
+  notification:
+    build: ./services/notification-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      PORT: "8085"
+      JWT_SECRET: ${JWT_SECRET:-TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/talentpulse_notification
+      SPRING_DATASOURCE_USERNAME: talentpulse
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-talentpulse}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USER: talentpulse
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
+
+  gateway:
+    build: ./services/api-gateway
+    restart: unless-stopped
+    depends_on:
+      - auth
+      - job
+      - candidate
+      - scoring
+      - notification
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      TALENTPULSE_AUTH_URL: http://auth:8081
+      TALENTPULSE_JOB_URL: http://job:8082
+      TALENTPULSE_CANDIDATE_URL: http://candidate:8083
+      TALENTPULSE_SCORING_URL: http://scoring:8084
+      TALENTPULSE_NOTIFICATION_URL: http://notification:8085
+
+volumes:
+  tp_pg_data:
