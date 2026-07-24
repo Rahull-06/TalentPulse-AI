@@ -44,7 +44,6 @@ services:
     region: oregon
     dockerfilePath: ./services/auth-service/Dockerfile
     dockerContext: .
-    healthCheckPath: /actuator/health
     envVars:
       - key: PORT
         value: "10000"
@@ -86,7 +85,6 @@ services:
     region: oregon
     dockerfilePath: ./services/job-service/Dockerfile
     dockerContext: .
-    healthCheckPath: /actuator/health
     envVars:
       - key: PORT
         value: "10000"
@@ -129,7 +127,6 @@ services:
     region: oregon
     dockerfilePath: ./services/candidate-service/Dockerfile
     dockerContext: .
-    healthCheckPath: /actuator/health
     envVars:
       - key: PORT
         value: "10000"
@@ -172,7 +169,6 @@ services:
     region: oregon
     dockerfilePath: ./services/scoring-service/Dockerfile
     dockerContext: .
-    healthCheckPath: /actuator/health
     envVars:
       - key: PORT
         value: "10000"
@@ -215,7 +211,6 @@ services:
     region: oregon
     dockerfilePath: ./services/notification-service/Dockerfile
     dockerContext: .
-    healthCheckPath: /actuator/health
     envVars:
       - key: PORT
         value: "10000"
