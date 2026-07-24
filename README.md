@@ -6,11 +6,10 @@ Enterprise recruitment platform: AI scores fit and surfaces skill gaps; **recrui
 
 | | |
 |---|---|
-| **Live app (frontend)** | _Set after Vercel deploy_ |
-| **API (backend)** | _Set after Docker Compose / Render deploy_ |
+| **Live app (frontend)** | _After Vercel_ |
+| **API (backend)** | _After VPS_ — `https://api.yourdomain.com` |
 
-**Next deploy steps:** [docs/deployment/production.md](docs/deployment/production.md)  
-**(Recommended)** Backend: `docker compose -f docker-compose.prod.yml up -d --build` · Frontend: Vercel (`frontend/`)
+**Deploy path:** VPS Docker backend + Vercel frontend → [docs/deployment/production.md](docs/deployment/production.md)
 
 ---
 

@@ -1,8 +1,11 @@
-# Full production-style stack on one host (VPS / local smoke test).
-# Usage (from repo root):
-#   docker compose -f docker-compose.prod.yml up -d --build
+# Full backend stack for a VPS (Postgres + RabbitMQ + 6 services + Caddy HTTPS).
 #
-# UI still runs on Vercel (or locally). Point NEXT_PUBLIC_API_URL at this host:8080.
+# On the VPS:
+#   cp .env.prod.example .env   # edit secrets + API_DOMAIN
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Public entry: https://$API_DOMAIN  →  gateway:8080
+# UI stays on Vercel; set NEXT_PUBLIC_API_URL=https://$API_DOMAIN
 
 services:
   postgres:
@@ -138,8 +141,9 @@ services:
       - candidate
       - scoring
       - notification
-    ports:
-      - "8080:8080"
+    # Not published publicly — Caddy terminates TLS on 80/443
+    expose:
+      - "8080"
     environment:
       PORT: "8080"
       TALENTPULSE_AUTH_URL: http://auth:8081
@@ -148,5 +152,22 @@ services:
       TALENTPULSE_SCORING_URL: http://scoring:8084
       TALENTPULSE_NOTIFICATION_URL: http://notification:8085
 
+  caddy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    depends_on:
+      - gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Set API_DOMAIN in .env (e.g. api.yourdomain.com)}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - tp_caddy_data:/data
+      - tp_caddy_config:/config
+
 volumes:
   tp_pg_data:
+  tp_caddy_data:
+  tp_caddy_config:

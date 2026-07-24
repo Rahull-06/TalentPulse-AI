@@ -71,3 +71,6 @@ tools/
 !.env.example
 !.env.*.example
 
+
+!.env.prod.example
+

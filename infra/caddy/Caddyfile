@@ -1,0 +1,7 @@
+# Automatic HTTPS via Let's Encrypt.
+# Set API_DOMAIN in .env (must be a DNS A/AAAA record pointing at this VPS).
+
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy gateway:8080
+}
