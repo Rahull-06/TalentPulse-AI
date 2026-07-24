@@ -1,0 +1,57 @@
+package com.talentpulse.candidate.config;
+
+import com.talentpulse.candidate.event.EventKeys;
+import org.springframework.amqp.core.Binding;
+import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.TopicExchange;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.amqp.support.converter.DefaultJackson2JavaTypeMapper;
+import org.springframework.amqp.support.converter.Jackson2JavaTypeMapper;
+import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
+import org.springframework.amqp.support.converter.MessageConverter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+@ConditionalOnProperty(name = "talentpulse.events.enabled", havingValue = "true", matchIfMissing = true)
+public class RabbitConfig {
+
+    @Bean
+    TopicExchange talentPulseExchange() {
+        return new TopicExchange(EventKeys.EXCHANGE, true, false);
+    }
+
+    @Bean
+    Queue scoreCompletedQueue() {
+        return new Queue(EventKeys.Q_SCORE_COMPLETED, true);
+    }
+
+    @Bean
+    Binding scoreCompletedBinding(Queue scoreCompletedQueue, TopicExchange talentPulseExchange) {
+        return BindingBuilder.bind(scoreCompletedQueue)
+                .to(talentPulseExchange)
+                .with(EventKeys.SCORE_COMPLETED);
+    }
+
+    @Bean
+    MessageConverter jacksonMessageConverter() {
+        Jackson2JsonMessageConverter converter = new Jackson2JsonMessageConverter();
+        DefaultJackson2JavaTypeMapper typeMapper = new DefaultJackson2JavaTypeMapper();
+        typeMapper.setTypePrecedence(Jackson2JavaTypeMapper.TypePrecedence.INFERRED);
+        typeMapper.setTrustedPackages("*");
+        converter.setJavaTypeMapper(typeMapper);
+        // Ignore publisher __TypeId__ (other services' package names) — use listener method type.
+        converter.setAlwaysConvertToInferredType(true);
+        return converter;
+    }
+
+    @Bean
+    RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter jacksonMessageConverter) {
+        RabbitTemplate template = new RabbitTemplate(connectionFactory);
+        template.setMessageConverter(jacksonMessageConverter);
+        return template;
+    }
+}

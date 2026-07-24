@@ -1,0 +1,84 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          # Forward Authorization as-is (JWT validated by each service)
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+
+          globalcors:
+            add-to-simple-url-handler-mapping: true
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns:
+                  - "http://localhost:*"
+                  - "http://127.0.0.1:*"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - PATCH
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders: "*"
+                allowCredentials: true
+                maxAge: 3600
+
+          routes:
+            - id: auth-service
+              uri: ${TALENTPULSE_AUTH_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/auth/**
+
+            # More specific than /jobs/** — applications live on candidate-service
+            - id: candidate-service-job-applications
+              uri: ${TALENTPULSE_CANDIDATE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/jobs/*/applications
+
+            - id: job-service
+              uri: ${TALENTPULSE_JOB_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/jobs/**
+
+            - id: candidate-service-profiles
+              uri: ${TALENTPULSE_CANDIDATE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/candidates/**
+
+            - id: candidate-service-applications
+              uri: ${TALENTPULSE_CANDIDATE_URL:http://localhost:8083}
+              predicates:
+                - Path=/api/v1/applications/**
+
+            - id: scoring-service
+              uri: ${TALENTPULSE_SCORING_URL:http://localhost:8084}
+              predicates:
+                - Path=/api/v1/scoring/**
+
+            - id: notification-service
+              uri: ${TALENTPULSE_NOTIFICATION_URL:http://localhost:8085}
+              predicates:
+                - Path=/api/v1/notifications/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  level:
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    com.talentpulse.gateway: DEBUG

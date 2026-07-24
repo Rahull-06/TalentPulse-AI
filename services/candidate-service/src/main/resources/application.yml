@@ -1,0 +1,58 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: candidate-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/talentpulse_candidate
+    username: talentpulse
+    password: talentpulse
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:talentpulse}
+    password: ${RABBITMQ_PASSWORD:talentpulse}
+
+talentpulse:
+  security:
+    jwt:
+      secret: "TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!"
+  storage:
+    # Resolved to an absolute path at runtime (avoids Tomcat temp-dir relative paths)
+    resume-dir: ${TALENTPULSE_RESUME_DIR:./data/resumes}
+  events:
+    enabled: true
+  clients:
+    job-service-url: ${TALENTPULSE_JOB_URL:http://localhost:8082}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    root: INFO
+    com.talentpulse.candidate: DEBUG

@@ -1,0 +1,46 @@
+# Local infrastructure for TalentPulse
+# Requires Docker Desktop installed and running.
+#
+# Start:
+#   docker compose up -d
+# Stop:
+#   docker compose down
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: talentpulse-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: talentpulse
+      POSTGRES_PASSWORD: talentpulse
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - talentpulse_pg_data:/var/lib/postgresql/data
+      - ./infra/docker/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U talentpulse -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: talentpulse-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: talentpulse
+      RABBITMQ_DEFAULT_PASS: talentpulse
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  talentpulse_pg_data:

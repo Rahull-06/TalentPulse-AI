@@ -1,0 +1,3 @@
+# Optional local overrides (do not commit secrets).
+# Example:
+# spring.datasource.password=my-local-password
