@@ -37,7 +37,9 @@ services:
       retries: 20
 
   auth:
-    build: ./services/auth-service
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -57,7 +59,9 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
 
   job:
-    build: ./services/job-service
+    build:
+      context: .
+      dockerfile: services/job-service/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -76,7 +80,9 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
 
   candidate:
-    build: ./services/candidate-service
+    build:
+      context: .
+      dockerfile: services/candidate-service/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -95,7 +101,9 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
 
   scoring:
-    build: ./services/scoring-service
+    build:
+      context: .
+      dockerfile: services/scoring-service/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -114,7 +122,9 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
 
   notification:
-    build: ./services/notification-service
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
@@ -133,7 +143,9 @@ services:
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-talentpulse}
 
   gateway:
-    build: ./services/api-gateway
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
     restart: unless-stopped
     depends_on:
       - auth

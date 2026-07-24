@@ -7,9 +7,9 @@ Enterprise recruitment platform: AI scores fit and surfaces skill gaps; **recrui
 | | |
 |---|---|
 | **Live app (frontend)** | _After Vercel_ |
-| **API (backend)** | _After VPS_ — `https://api.yourdomain.com` |
+| **API (backend)** | _After Render_ — `https://talentpulse-gateway….onrender.com` |
 
-**Deploy path:** VPS Docker backend + Vercel frontend → [docs/deployment/production.md](docs/deployment/production.md)
+**Deploy path:** Render (API) + Vercel (UI) → [docs/deployment/production.md](docs/deployment/production.md)
 
 ---
 

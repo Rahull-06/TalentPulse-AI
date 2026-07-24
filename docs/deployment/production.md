@@ -1,75 +1,61 @@
-# Production: VPS Docker (backend) + Vercel (frontend)
+# Production: Render (API) + Vercel (UI)
 
-| Piece | Where | Public URL |
+| Piece | Platform | URL |
 |---|---|---|
-| UI | Vercel | `https://….vercel.app` |
-| API | Your VPS (Docker + Caddy) | `https://api.yourdomain.com` |
+| Backend | **Render** Blueprint (`render.yaml`) | `https://talentpulse-gateway.onrender.com` |
+| Frontend | **Vercel** (`frontend/`) | `https://….vercel.app` |
 | Repo | GitHub | https://github.com/Rahull-06/TalentPulse-AI |
 
-**Why HTTPS on the VPS?** Vercel is HTTPS. Browsers block `https` pages calling `http` APIs (mixed content). Caddy gets a free Let's Encrypt cert for your API domain.
+Do these in order.
 
 ---
 
-## What you need
+## 0) One free RabbitMQ (CloudAMQP)
 
-1. A **VPS** (Ubuntu 22.04+, 2 GB RAM minimum; 4 GB better for 6 JVMs) — e.g. Hetzner, DigitalOcean, Linode, AWS Lightsail  
-2. A **domain** (or subdomain) with an **A record** → VPS public IP (example: `api.yourdomain.com`)  
-3. Accounts: GitHub (done), [Vercel](https://vercel.com)
+Render has no free RabbitMQ. Create one:
 
----
+1. [cloudamqp.com](https://www.cloudamqp.com/) → **Little Lemur** (free)
+2. Open the instance → copy **Host**, **User**, **Password** (AMQP port `5672`)
 
-## Step 1 — VPS backend
-
-SSH into the server, then:
-
-```bash
-# Docker Engine + Compose plugin (Ubuntu)
-sudo apt update && sudo apt install -y ca-certificates curl git
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER
-# log out/in once so docker works without sudo
-
-git clone https://github.com/Rahull-06/TalentPulse-AI.git
-cd TalentPulse-AI
-
-cp .env.prod.example .env
-nano .env   # set API_DOMAIN, JWT_SECRET, passwords
-```
-
-`.env` must include:
-
-```env
-API_DOMAIN=api.yourdomain.com
-JWT_SECRET=...long-random...
-POSTGRES_PASSWORD=...
-RABBITMQ_PASSWORD=...
-TALENTPULSE_FRONTEND_URL=https://placeholder.vercel.app
-```
-
-Open firewall (if `ufw`):
-
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 80
-sudo ufw allow 443
-sudo ufw enable
-```
-
-DNS: create **A** record `api.yourdomain.com` → VPS IP. Wait until it resolves.
-
-Start stack (first build takes several minutes):
-
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-docker compose -f docker-compose.prod.yml ps
-curl -sS https://api.yourdomain.com/actuator/health
-```
-
-Expect `{"status":"UP"}` (or similar).
+Keep this tab open.
 
 ---
 
-## Step 2 — Vercel frontend
+## 1) Backend → Render
+
+1. [dashboard.render.com](https://dashboard.render.com) → **New** → **Blueprint**
+2. Connect **Rahull-06/TalentPulse-AI** (branch `main`)
+3. Render reads `render.yaml` → apply
+4. When prompted, set the same values on **every** service that asks:
+
+| Variable | Value |
+|---|---|
+| `RABBITMQ_HOST` | CloudAMQP host |
+| `RABBITMQ_USER` | CloudAMQP user |
+| `RABBITMQ_PASSWORD` | CloudAMQP password |
+| `TALENTPULSE_FRONTEND_URL` | `https://placeholder.vercel.app` (auth only — update after Vercel) |
+
+5. Wait until **talentpulse-db** (Postgres) is available.
+6. Open Postgres → **Shell** (or Connect) and run:
+
+```sql
+CREATE DATABASE talentpulse_auth;
+CREATE DATABASE talentpulse_job;
+CREATE DATABASE talentpulse_candidate;
+CREATE DATABASE talentpulse_scoring;
+CREATE DATABASE talentpulse_notification;
+```
+
+7. **Manual Deploy** each Java service once (so they pick up the new DBs), or Blueprint sync redeploy.
+8. Open **talentpulse-gateway** → copy its URL, e.g.  
+   `https://talentpulse-gateway-xxxx.onrender.com`  
+9. Check: `https://YOUR-GATEWAY/actuator/health` → should be UP
+
+> Free web services **sleep** after idle time; first request can take 30–60s while JVMs wake up.
+
+---
+
+## 2) Frontend → Vercel
 
 1. [vercel.com/new](https://vercel.com/new) → Import **Rahull-06/TalentPulse-AI**
 2. **Root Directory** = `frontend`
@@ -77,60 +63,40 @@ Expect `{"status":"UP"}` (or similar).
 
 | Name | Value |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://api.yourdomain.com` (no trailing slash) |
+| `NEXT_PUBLIC_API_URL` | `https://YOUR-GATEWAY.onrender.com` (no trailing slash) |
 
-4. Deploy  
-5. Copy the deployment URL (`https://something.vercel.app`)
-
----
-
-## Step 3 — Wire auth ↔ frontend
-
-On the VPS, edit `.env`:
-
-```env
-TALENTPULSE_FRONTEND_URL=https://something.vercel.app
-```
-
-Restart auth (picks up reset-password links):
-
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env up -d auth
-```
-
-Open the Vercel URL → Jobs should load from your API.
+4. Deploy → copy `https://….vercel.app`
 
 ---
 
-## Useful commands (VPS)
+## 3) Wire auth → Vercel URL
 
-```bash
-# Logs
-docker compose -f docker-compose.prod.yml logs -f gateway
-docker compose -f docker-compose.prod.yml logs -f auth
+On Render → **talentpulse-auth** → Environment:
 
-# Rebuild after git pull
-git pull
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+| Name | Value |
+|---|---|
+| `TALENTPULSE_FRONTEND_URL` | your `https://….vercel.app` |
 
-# Stop
-docker compose -f docker-compose.prod.yml down
-```
+Redeploy **talentpulse-auth**.
+
+Open the Vercel site → Jobs should load (allow cold start).
 
 ---
 
 ## Checklist
 
-- [ ] DNS A record for `API_DOMAIN` points at VPS  
-- [ ] `https://API_DOMAIN/actuator/health` is UP  
-- [ ] Vercel `NEXT_PUBLIC_API_URL` = that HTTPS API  
-- [ ] `TALENTPULSE_FRONTEND_URL` = Vercel URL  
-- [ ] Strong secrets in `.env` (not the example defaults)
+- [ ] CloudAMQP created; host/user/pass set on all services  
+- [ ] Five `CREATE DATABASE` statements run on Render Postgres  
+- [ ] Gateway `/actuator/health` is UP  
+- [ ] Vercel `NEXT_PUBLIC_API_URL` = gateway HTTPS URL  
+- [ ] Auth `TALENTPULSE_FRONTEND_URL` = Vercel URL  
+
+Gateway CORS already allows `https://*.vercel.app`.
 
 ---
 
-## Render (optional alternative)
+## Optional: VPS Docker instead
 
-See older notes in git history / `render.yaml` if you prefer Render instead of a VPS. For this monorepo, **VPS Docker + Vercel** is the smoother path.
+If you later prefer one server: [previous VPS notes](./production.md) / `docker-compose.prod.yml` (still in the repo).
 
-Local dev remains: [local-run.md](./local-run.md)
+Local dev: [local-run.md](./local-run.md)
