@@ -135,6 +135,9 @@ services:
     envVars:
       - key: PORT
         value: "10000"
+      # Writable on free tier (ephemeral; parsed text lives in Postgres).
+      - key: TALENTPULSE_RESUME_DIR
+        value: /tmp/talentpulse/resumes
       # JobClient fetches job skills when a candidate applies.
       - key: TALENTPULSE_JOB_URL
         value: https://talentpulse-job.onrender.com
