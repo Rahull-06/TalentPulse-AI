@@ -17,14 +17,15 @@ spring:
     open-in-view: false
     properties:
       hibernate:
+        default_schema: job
         format_sql: true
 
   flyway:
     enabled: true
     locations: classpath:db/migration
-    table: flyway_history_job
-    baseline-on-migrate: true
-    baseline-version: '0'
+    schemas: job
+    default-schema: job
+    create-schemas: true
 
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
@@ -40,7 +41,7 @@ spring:
 talentpulse:
   security:
     jwt:
-      secret: ${JWT_SECRET:TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
+      secret: "${JWT_SECRET:TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}"
   events:
     enabled: true
 

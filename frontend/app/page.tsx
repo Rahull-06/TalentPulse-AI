@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen">
+    <div className="tp-app">
       <SiteHeader />
 
-      <section className="relative min-h-[calc(100svh-var(--header-h))] overflow-hidden">
+      <section className="tp-hero-viewport relative overflow-hidden">
         <div
           aria-hidden
           className="absolute inset-0 bg-[linear-gradient(125deg,#152722_0%,#1f3832_36%,#263532_70%,#171e1c_100%)]"
@@ -44,7 +45,7 @@ export default function HomePage() {
           />
         </svg>
 
-        <div className="tp-container relative z-10 flex min-h-[calc(100svh-var(--header-h))] flex-col justify-end pb-14 pt-16 sm:justify-center sm:pb-24 sm:pt-10">
+        <div className="tp-hero-viewport tp-container relative z-10 flex flex-col justify-center py-16 sm:pb-24 sm:pt-10">
           <p className="tp-fade-up tp-eyebrow text-[rgba(232,238,235,0.72)]">TalentPulse</p>
           <h1 className="tp-fade-up-delay tp-display mt-3 max-w-3xl text-[clamp(2.4rem,9vw,5.4rem)] text-[#f4f6f4]">
             Hire with signal,
@@ -54,7 +55,7 @@ export default function HomePage() {
           <p className="tp-fade-up-delay-2 mt-4 max-w-xl text-[0.98rem] leading-relaxed text-[rgba(232,238,235,0.72)] sm:mt-5 sm:text-[1.05rem]">
             Fit scores, skill gaps, and interview questions — AI assists, recruiters decide.
           </p>
-          <div className="tp-fade-up-delay-2 mt-8 flex w-full flex-col gap-3 sm:mt-9 sm:w-auto sm:flex-row">
+          <div className="tp-fade-up-delay-2 mt-8 flex w-full max-w-sm flex-col gap-3 sm:mt-9 sm:max-w-none sm:w-auto sm:flex-row">
             <Link href="/register" className="tp-btn tp-btn-on-dark w-full sm:w-auto">
               Start free
             </Link>
@@ -65,7 +66,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="tp-container py-16 sm:py-24">
+      <section className="tp-container tp-page-tail pt-16 sm:pt-24">
         <div className="max-w-2xl">
           <p className="tp-eyebrow">What it does</p>
           <h2 className="tp-display mt-3 text-[clamp(2rem,5vw,3rem)]">
@@ -98,6 +99,8 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <MobileTabBar />
     </div>
   );
 }

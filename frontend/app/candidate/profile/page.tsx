@@ -130,14 +130,17 @@ export default function CandidateProfilePage() {
             </label>
 
             <label className="tp-field">
-              <span className="tp-label">Resume (PDF / DOC / DOCX)</span>
+              <span className="tp-label">Resume (PDF only)</span>
               <input
                 className="tp-input"
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept="application/pdf,.pdf"
                 onChange={(e) => void onUpload(e.target.files?.[0] ?? null)}
               />
-              {uploading ? <span className="tp-muted text-xs">Uploading…</span> : null}
+              {uploading ? <span className="tp-muted text-xs">Uploading &amp; analyzing PDF…</span> : null}
+              <span className="tp-muted text-xs">
+                We extract text and skills from your PDF so fit scores reflect the real resume.
+              </span>
             </label>
 
             {error ? <p className="tp-error">{error}</p> : null}

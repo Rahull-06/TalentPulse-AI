@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Syne } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
-// @ts-ignore
+// @ts-expect-error CSS module side-effect import
 import "./globals.css";
 
 const syne = Syne({

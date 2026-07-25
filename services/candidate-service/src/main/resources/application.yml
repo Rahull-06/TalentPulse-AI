@@ -17,14 +17,15 @@ spring:
     open-in-view: false
     properties:
       hibernate:
+        default_schema: candidate
         format_sql: true
 
   flyway:
     enabled: true
     locations: classpath:db/migration
-    table: flyway_history_candidate
-    baseline-on-migrate: true
-    baseline-version: '0'
+    schemas: candidate
+    default-schema: candidate
+    create-schemas: true
 
   servlet:
     multipart:
@@ -45,9 +46,8 @@ spring:
 talentpulse:
   security:
     jwt:
-      secret: ${JWT_SECRET:TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}
+      secret: "${JWT_SECRET:TalentPulseAuthSecretKeyMustBeAtLeast32CharsLong!}"
   storage:
-    # Resolved to an absolute path at runtime (avoids Tomcat temp-dir relative paths)
     resume-dir: ${TALENTPULSE_RESUME_DIR:./data/resumes}
   events:
     enabled: true

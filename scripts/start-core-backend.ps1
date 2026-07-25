@@ -30,10 +30,10 @@ cd '$root'
 `$env:Path='$pathPrefix' + `$env:Path
 Write-Host '=== $name ===' -ForegroundColor Green
 Write-Host \"JAVA_HOME=`$env:JAVA_HOME\"
-mvn -f $pom clean spring-boot:run
+mvn -f $pom spring-boot:run
 "@
     Start-Process powershell -ArgumentList "-NoExit", "-Command", $cmd
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 5
 }
 
 Start-ServiceWindow "Auth (8081)" "services\auth-service\pom.xml"
@@ -44,6 +44,6 @@ Start-ServiceWindow "Notification (8085)" "services\notification-service\pom.xml
 Start-ServiceWindow "Gateway (8080)" "services\api-gateway\pom.xml"
 
 Write-Host ""
-Write-Host "Opened 6 backend windows. Wait ~90s, then use http://localhost:3000" -ForegroundColor Green
+Write-Host "Opened 6 backend windows. Wait ~60-90s for Started ...Application, then use http://localhost:3000" -ForegroundColor Green
 Write-Host "Ports: Auth 8081 | Job 8082 | Candidate 8083 | Scoring 8084 | Notification 8085 | Gateway 8080" -ForegroundColor DarkGray
 Write-Host "Close any old failed windows first. If Port already in use, that service is already up." -ForegroundColor Yellow

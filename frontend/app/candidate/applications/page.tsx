@@ -130,32 +130,40 @@ export default function MyApplicationsPage() {
 
                   {score ? (
                     <div className="tp-score-block">
-                      <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
-                        <span className="tp-score-value">{score.fitScore}</span>
-                        <span className="tp-muted pb-0.5 text-xs font-medium uppercase tracking-[0.08em]">
-                          Fit score · {score.scoringMode}
-                        </span>
+                      <div className="tp-score-split">
+                        <div className="tp-score-dial">
+                          <span className="tp-score-dial-value">{score.fitScore}</span>
+                          <span className="tp-score-dial-label">Fit</span>
+                        </div>
+
+                        <div className="tp-score-body">
+                          <span className="tp-muted text-[0.7rem] font-semibold uppercase tracking-[0.1em]">
+                            {score.scoringMode === "AI" ? "AI analysis" : "Rule based"}
+                          </span>
+
+                          {score.matchedSkills?.length ? (
+                            <div className="tp-chip-scroll">
+                              {score.matchedSkills.map((s) => (
+                                <span key={s} className="tp-skill-pill tp-skill-pill-ok">
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                          {score.missingSkills?.length ? (
+                            <div className="tp-chip-scroll">
+                              {score.missingSkills.map((s) => (
+                                <span key={s} className="tp-skill-pill tp-skill-pill-gap">
+                                  Gap · {s}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
-                      {score.matchedSkills?.length ? (
-                        <div className="tp-skill-row">
-                          {score.matchedSkills.map((s) => (
-                            <span key={s} className="tp-skill-pill tp-skill-pill-ok">
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                      {score.missingSkills?.length ? (
-                        <div className="tp-skill-row">
-                          {score.missingSkills.map((s) => (
-                            <span key={s} className="tp-skill-pill tp-skill-pill-gap">
-                              Gap · {s}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
+
                       {score.explanation ? (
-                        <p className="tp-muted mt-2 text-xs leading-relaxed">{score.explanation}</p>
+                        <p className="tp-muted mt-2.5 text-xs leading-relaxed">{score.explanation}</p>
                       ) : null}
                     </div>
                   ) : null}

@@ -24,6 +24,7 @@ export default function RecruiterJobsPage() {
   const [openings, setOpenings] = useState("1");
   const [maxApplicants, setMaxApplicants] = useState("50");
   const [creating, setCreating] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   const load = async (access: string) => {
     const page = await api<PageResponse<Job>>("/api/v1/jobs/organization/me?page=0&size=50", {
@@ -111,7 +112,21 @@ export default function RecruiterJobsPage() {
           Create roles, publish when ready, then review applicants with calm focus.
         </p>
 
-        <form onSubmit={onCreate} className="tp-panel mt-8 grid gap-4 p-6 sm:p-8">
+        <button
+          type="button"
+          className="tp-btn tp-btn-soft tp-composer-toggle mt-6 w-full"
+          aria-expanded={showForm}
+          onClick={() => setShowForm((v) => !v)}
+        >
+          {showForm ? "Close new role" : "+ New role"}
+        </button>
+
+        <form
+          onSubmit={onCreate}
+          className={`tp-panel tp-composer mt-4 grid gap-4 p-5 sm:mt-8 sm:p-8${
+            showForm ? " is-open" : ""
+          }`}
+        >
           <h2 className="tp-display text-2xl">New role</h2>
           <label className="tp-field">
             <span className="tp-label">Title</span>
@@ -176,39 +191,41 @@ export default function RecruiterJobsPage() {
               <EmptyState title="No jobs yet" body="Create your first role above." />
             </div>
           ) : (
-            <ul className="mt-4 divide-y divide-[var(--line)] border-y border-[var(--line)]">
+            <ul className="tp-card-grid mt-4">
               {jobs.map((job) => (
-                <li
-                  key={job.id}
-                  className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div>
-                    <Link
-                      href={`/recruiter/jobs/${job.id}`}
-                      className="tp-display text-xl hover:text-[var(--accent)]"
-                    >
-                      {job.title}
-                    </Link>
-                    <p className="tp-muted mt-1 text-sm">
-                      {job.location}
-                      {job.openings ? ` · ${job.openings} opening(s)` : ""}
-                      {job.maxApplicants ? ` · max ${job.maxApplicants} applicants` : ""}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <StatusBadge status={job.status} />
-                    {job.status === "DRAFT" ? (
-                      <button
-                        type="button"
-                        className="tp-btn tp-btn-soft !min-h-9 !px-3"
-                        onClick={() => void publish(job.id)}
+                <li key={job.id} className="min-w-0">
+                  <div className="tp-tile">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/recruiter/jobs/${job.id}`}
+                        className="tp-tile-title hover:text-[var(--accent)]"
                       >
-                        Publish
-                      </button>
-                    ) : null}
-                    <Link href={`/recruiter/jobs/${job.id}`} className="tp-btn tp-btn-ghost !min-h-9 !px-3">
-                      Applicants
-                    </Link>
+                        {job.title}
+                      </Link>
+                      <p className="tp-tile-meta">
+                        {job.location}
+                        {job.openings ? ` · ${job.openings} opening(s)` : ""}
+                        {job.maxApplicants ? ` · max ${job.maxApplicants}` : ""}
+                      </p>
+                    </div>
+                    <div className="tp-tile-foot flex flex-wrap items-center gap-2">
+                      <StatusBadge status={job.status} />
+                      {job.status === "DRAFT" ? (
+                        <button
+                          type="button"
+                          className="tp-btn tp-btn-soft !min-h-8 !px-2.5 !text-xs"
+                          onClick={() => void publish(job.id)}
+                        >
+                          Publish
+                        </button>
+                      ) : null}
+                      <Link
+                        href={`/recruiter/jobs/${job.id}`}
+                        className="tp-btn tp-btn-ghost !min-h-8 !px-2.5 !text-xs"
+                      >
+                        Applicants
+                      </Link>
+                    </div>
                   </div>
                 </li>
               ))}

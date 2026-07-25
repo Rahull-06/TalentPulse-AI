@@ -2,6 +2,7 @@ package com.talentpulse.candidate.repository;
 
 import com.talentpulse.candidate.entity.Application;
 import com.talentpulse.candidate.enums.ApplicationStatus;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -15,6 +16,8 @@ public interface ApplicationRepository extends JpaRepository<Application, UUID> 
     Optional<Application> findByIdAndCandidateProfileId(UUID id, UUID candidateProfileId);
 
     Page<Application> findByCandidateProfileId(UUID candidateProfileId, Pageable pageable);
+
+    List<Application> findByCandidateProfileId(UUID candidateProfileId);
 
     Page<Application> findByJobIdAndOrganizationId(
             UUID jobId,

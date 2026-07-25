@@ -80,21 +80,21 @@ export default function JobsPage() {
               body="Check back soon, or refine your search."
             />
           ) : jobs.length === 0 ? null : (
-            <ul className="tp-list">
+            <ul className="tp-card-grid">
               {jobs.map((job) => (
-                <li key={job.id}>
-                  <Link href={`/jobs/${job.id}`} className="tp-list-item tp-list-item-link group">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <h2 className="tp-display text-xl transition-colors group-hover:text-[var(--accent)]">
-                          {job.title}
-                        </h2>
-                        <p className="tp-muted mt-1.5 text-sm">
-                          {[job.location, job.employmentType?.replaceAll("_", " ")]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </p>
-                      </div>
+                <li key={job.id} className="min-w-0">
+                  <Link href={`/jobs/${job.id}`} className="tp-tile group">
+                    <div className="min-w-0">
+                      <h2 className="tp-tile-title transition-colors group-hover:text-[var(--accent)]">
+                        {job.title}
+                      </h2>
+                      <p className="tp-tile-meta">
+                        {[job.location, job.employmentType?.replaceAll("_", " ")]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    <div className="tp-tile-foot">
                       <StatusBadge status={job.status} />
                     </div>
                   </Link>

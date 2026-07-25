@@ -6,12 +6,15 @@ import com.talentpulse.candidate.dto.CandidateProfileResponse;
 import com.talentpulse.candidate.dto.ResumeResponse;
 import com.talentpulse.candidate.dto.UpdateProfileRequest;
 import com.talentpulse.candidate.entity.CandidateProfile;
+import com.talentpulse.candidate.entity.CandidateSkill;
 import com.talentpulse.candidate.entity.Resume;
 import com.talentpulse.candidate.enums.ParseStatus;
 import com.talentpulse.candidate.enums.Role;
+import com.talentpulse.candidate.enums.SkillSource;
 import com.talentpulse.candidate.exception.ForbiddenActionException;
 import com.talentpulse.candidate.exception.ResourceNotFoundException;
 import com.talentpulse.candidate.repository.CandidateProfileRepository;
+import com.talentpulse.candidate.repository.CandidateSkillRepository;
 import com.talentpulse.candidate.repository.ResumeRepository;
 import com.talentpulse.candidate.security.AuthPrincipal;
 import java.io.IOException;
@@ -34,7 +37,10 @@ public class CandidateProfileService {
 
     private final CandidateProfileRepository candidateProfileRepository;
     private final ResumeRepository resumeRepository;
+    private final CandidateSkillRepository candidateSkillRepository;
     private final StorageProperties storageProperties;
+    private final ResumePdfParser resumePdfParser;
+    private final ApplicationRescoringService applicationRescoringService;
 
     @Transactional
     public CandidateProfileResponse getOrCreateMyProfile(AuthPrincipal principal) {
@@ -68,22 +74,30 @@ public class CandidateProfileService {
         }
 
         CandidateProfile profile = getProfileEntity(principal.userId());
-        String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "resume";
+        String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "resume.pdf";
         String extension = extractExtension(originalName);
-        if (!List.of("pdf", "doc", "docx").contains(extension)) {
-            throw new IllegalArgumentException("Only PDF/DOC/DOCX resumes are allowed");
+        if (!"pdf".equals(extension)) {
+            throw new IllegalArgumentException("Only PDF resumes are accepted");
         }
+
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to read resume file: " + ex.getMessage(), ex);
+        }
+        ResumePdfParser.ParsedResume parsed = resumePdfParser.parsePdfBytes(bytes);
 
         Path baseDir = Paths.get(storageProperties.getResumeDir()).toAbsolutePath().normalize();
         Path dir = baseDir.resolve(profile.getId().toString());
         try {
             Files.createDirectories(dir);
-            String storedName = UUID.randomUUID() + "." + extension;
+            String storedName = UUID.randomUUID() + ".pdf";
             Path target = dir.resolve(storedName).normalize();
             if (!target.startsWith(baseDir)) {
                 throw new IllegalArgumentException("Invalid resume storage path");
             }
-            file.transferTo(target);
+            Files.write(target, bytes);
 
             boolean firstResume = resumeRepository
                     .findByCandidateProfileIdOrderByUploadedAtDesc(profile.getId())
@@ -93,18 +107,24 @@ public class CandidateProfileService {
                     .candidateProfile(profile)
                     .fileName(originalName)
                     .fileUrl(target.toString())
-                    .fileType(extension)
-                    .parsedText(null)
-                    .parseStatus(ParseStatus.PENDING)
+                    .fileType("pdf")
+                    .parsedText(parsed.text())
+                    .parseStatus(ParseStatus.SUCCESS)
                     .primaryResume(firstResume)
                     .uploadedAt(Instant.now())
                     .build();
 
-            // v1: mark parse SUCCESS with placeholder text (real parsing later / Scoring)
-            resume.setParsedText("Uploaded file: " + originalName);
-            resume.setParseStatus(ParseStatus.SUCCESS);
+            Resume saved = resumeRepository.save(resume);
+            replaceParsedSkills(profile, parsed.skills());
+            if (!firstResume) {
+                // Keep newest upload as primary so applications use the parsed PDF.
+                resumeRepository.clearPrimaryFlag(profile.getId());
+                saved.setPrimaryResume(true);
+                saved = resumeRepository.save(saved);
+            }
 
-            return CandidateMapper.toResumeResponse(resumeRepository.save(resume));
+            applicationRescoringService.rescoreOpenApplications(profile, saved);
+            return CandidateMapper.toResumeResponse(saved);
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to store resume file: " + ex.getMessage(), ex);
         }
@@ -129,13 +149,26 @@ public class CandidateProfileService {
 
         resumeRepository.clearPrimaryFlag(profile.getId());
         resume.setPrimaryResume(true);
-        return CandidateMapper.toResumeResponse(resumeRepository.save(resume));
+        Resume saved = resumeRepository.save(resume);
+        applicationRescoringService.rescoreOpenApplications(profile, saved);
+        return CandidateMapper.toResumeResponse(saved);
     }
 
     @Transactional(readOnly = true)
     public CandidateProfile getProfileEntity(UUID userId) {
         return candidateProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Candidate profile not found. Call GET /me first."));
+    }
+
+    private void replaceParsedSkills(CandidateProfile profile, List<String> skills) {
+        candidateSkillRepository.deleteByCandidateProfileIdAndSource(profile.getId(), SkillSource.RESUME_PARSED);
+        for (String skillName : skills) {
+            candidateSkillRepository.save(CandidateSkill.builder()
+                    .candidateProfile(profile)
+                    .skillName(skillName)
+                    .source(SkillSource.RESUME_PARSED)
+                    .build());
+        }
     }
 
     private CandidateProfileResponse createProfileSafely(UUID userId) {

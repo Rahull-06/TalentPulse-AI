@@ -20,6 +20,7 @@
   --radius: 12px;
   --radius-sm: 8px;
   --header-h: 64px;
+  --tabbar-h: 60px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --font-display: var(--font-syne), "Syne", sans-serif;
   --font-body: var(--font-manrope), "Manrope", sans-serif;
@@ -585,37 +586,39 @@ select {
 }
 
 .tp-header-inner {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   min-height: var(--header-h);
 }
 
 .tp-brand {
   font-family: var(--font-display);
-  font-size: clamp(1.05rem, 3.5vw, 1.28rem);
+  font-size: clamp(1.1rem, 3.5vw, 1.28rem);
   letter-spacing: -0.05em;
   font-weight: 700;
-  justify-self: start;
+  flex: 0 0 auto;
 }
 
+/* Desktop inline nav — hidden on small screens (hamburger takes over) */
 .tp-nav-center {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
-  gap: 0.35rem;
-  flex-wrap: wrap;
+  gap: 0.15rem;
+  flex: 1 1 auto;
 }
 
 .tp-nav-link {
   position: relative;
-  padding: 0.35rem 0.55rem;
+  padding: 0.4rem 0.7rem;
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--muted);
   border-radius: 6px;
+  white-space: nowrap;
   transition: color 160ms var(--ease), background 160ms var(--ease);
 }
 
@@ -631,9 +634,9 @@ select {
 .tp-nav-link-active::after {
   content: "";
   position: absolute;
-  left: 0.55rem;
-  right: 0.55rem;
-  bottom: 0.1rem;
+  left: 0.7rem;
+  right: 0.7rem;
+  bottom: 0.05rem;
   height: 2px;
   border-radius: 2px;
   background: var(--accent);
@@ -644,7 +647,7 @@ select {
   align-items: center;
   justify-content: flex-end;
   gap: 0.4rem;
-  justify-self: end;
+  flex: 0 0 auto;
 }
 
 .tp-header-user {
@@ -657,23 +660,419 @@ select {
   white-space: nowrap;
 }
 
-@media (min-width: 640px) {
-  .tp-nav-center {
-    gap: 0.45rem;
+/* Desktop-only actions (sign out / sign in / get started buttons) */
+.tp-desktop-only {
+  display: none;
+}
+
+/* Account avatar (mobile) + dropdown sheet */
+.tp-avatar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: linear-gradient(150deg, var(--accent-soft), #fff);
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
+}
+
+.tp-avatar-btn:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow-soft);
+}
+
+.tp-account-sheet {
+  position: absolute;
+  top: calc(var(--header-h) - 6px);
+  right: 0;
+  z-index: 60;
+  width: min(15rem, calc(100vw - 1.5rem));
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  box-shadow: 0 20px 38px -22px rgba(18, 20, 26, 0.45);
+  animation: tpMenuDrop 200ms var(--ease) both;
+}
+
+.tp-account-name {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tp-account-role {
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  color: var(--muted);
+}
+
+@keyframes tpMenuDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* —— Mobile bottom tab bar (app feel) —— */
+.tp-app {
+  min-height: 100svh;
+}
+
+/* Full-bleed hero that accounts for the mobile tab bar */
+.tp-hero-viewport {
+  min-height: calc(100svh - var(--header-h) - var(--tabbar-h) - env(safe-area-inset-bottom));
+}
+
+.tp-page-tail {
+  padding-bottom: calc(var(--tabbar-h) + 2rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 860px) {
+  .tp-hero-viewport {
+    min-height: calc(100svh - var(--header-h));
   }
 
-  .tp-nav-link {
-    padding: 0.4rem 0.7rem;
+  .tp-page-tail {
+    padding-bottom: 6rem;
+  }
+}
+
+.tp-main {
+  padding-top: 1.25rem;
+  padding-bottom: calc(var(--tabbar-h) + 1.5rem + env(safe-area-inset-bottom));
+}
+
+.tp-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 55;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: stretch;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem calc(0.4rem + env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(221, 217, 209, 0.9);
+  background: rgba(250, 249, 246, 0.92);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 -8px 24px -20px rgba(18, 20, 26, 0.5);
+}
+
+.tp-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0.2rem 0.35rem;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: color 180ms var(--ease), background 180ms var(--ease);
+}
+
+.tp-tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  transition: transform 220ms var(--ease);
+}
+
+.tp-tab.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tp-tab.is-active .tp-tab-icon {
+  transform: translateY(-1px);
+}
+
+.tp-tab:active .tp-tab-icon {
+  transform: scale(0.92);
+}
+
+/* —— Responsive card system —— */
+/* Mobile: two-up compact tiles. Desktop: full-width rows. */
+.tp-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tp-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  height: 100%;
+  padding: 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: var(--shadow-soft);
+  color: inherit;
+  transition:
+    border-color 180ms var(--ease),
+    box-shadow 180ms var(--ease),
+    transform 180ms var(--ease);
+}
+
+.tp-tile:active {
+  transform: scale(0.985);
+}
+
+.tp-tile-title {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tp-tile-meta {
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tp-tile-foot {
+  margin-top: auto;
+  padding-top: 0.15rem;
+}
+
+/* Score tile shown beside content on mobile application cards */
+.tp-score-split {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.tp-score-dial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 68px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(30, 61, 54, 0.14);
+  background: linear-gradient(160deg, rgba(230, 239, 235, 0.9), rgba(251, 250, 247, 0.95));
+  padding: 0.5rem 0.25rem;
+}
+
+.tp-score-dial-value {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.tp-score-dial-label {
+  margin-top: 0.2rem;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tp-score-body {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* Horizontally scrollable chip strip — avoids skill pills wrapping into a wall */
+.tp-chip-scroll {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 0.15rem;
+}
+
+.tp-chip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tp-chip-scroll > * {
+  flex: 0 0 auto;
+}
+
+/* Collapsible composer — closed by default on mobile, always open on desktop */
+.tp-composer {
+  display: none;
+}
+
+.tp-composer.is-open {
+  display: grid;
+  animation: tpMenuDrop 240ms var(--ease) both;
+}
+
+/* Mobile page headings: tighter, app-like rather than editorial */
+@media (max-width: 859px) {
+  .tp-page-head {
+    margin-bottom: 1.15rem;
+  }
+
+  .tp-list-item {
+    padding: 0.95rem 1rem;
+  }
+
+  .tp-score-block {
+    margin-top: 0.75rem;
+    padding: 0.7rem 0.75rem;
+  }
+}
+
+/* Desktop / tablet: editorial layout takes over */
+@media (min-width: 860px) {
+  .tp-composer {
+    display: grid;
+  }
+
+  .tp-composer-toggle {
+    display: none;
+  }
+
+  .tp-nav-center {
+    display: flex;
   }
 
   .tp-header-user {
     display: inline;
   }
+
+  .tp-desktop-only {
+    display: inline-flex;
+  }
+
+  .tp-avatar-btn {
+    display: none;
+  }
+
+  .tp-account-sheet {
+    display: none;
+  }
+
+  .tp-tabbar {
+    display: none;
+  }
+
+  .tp-main {
+    padding-top: 3rem;
+    padding-bottom: 4rem;
+  }
+
+  .tp-card-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .tp-tile {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.15rem 1.25rem;
+  }
+
+  .tp-tile:hover {
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  .tp-tile-title {
+    font-size: 1.25rem;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .tp-tile-meta {
+    margin-top: 0.35rem;
+    font-size: 0.875rem;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+  }
+
+  .tp-tile-foot {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .tp-score-dial {
+    width: 84px;
+    padding: 0.7rem 0.4rem;
+  }
+
+  .tp-score-dial-value {
+    font-size: 1.9rem;
+  }
+
+  .tp-chip-scroll {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
 }
 
-@media (max-width: 420px) {
-  .tp-header-actions .tp-btn-ghost {
-    display: none;
+/* Tablet: two-up tiles with more breathing room */
+@media (min-width: 560px) and (max-width: 859px) {
+  .tp-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+  }
+
+  .tp-tile {
+    padding: 1.05rem;
+  }
+
+  .tp-tile-title {
+    font-size: 1.1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-account-sheet {
+    animation: none !important;
   }
 }
 

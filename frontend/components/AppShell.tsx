@@ -1,3 +1,4 @@
+import { MobileTabBar } from "@/components/MobileTabBar";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export function AppShell({
@@ -7,9 +8,10 @@ export function AppShell({
   wide?: boolean;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="tp-app">
       <SiteHeader />
-      <main className="tp-container py-6 sm:py-10 md:py-12">{children}</main>
+      <main className="tp-container tp-main">{children}</main>
+      <MobileTabBar />
     </div>
   );
 }
