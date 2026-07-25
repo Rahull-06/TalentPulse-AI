@@ -21,16 +21,18 @@ services:
     envVars:
       - key: PORT
         value: "10000"
+      # Free web services cannot RECEIVE private network traffic, so route
+      # through public URLs instead of internal <service>:10000 addresses.
       - key: TALENTPULSE_AUTH_URL
-        value: http://talentpulse-auth:10000
+        value: https://talentpulse-auth.onrender.com
       - key: TALENTPULSE_JOB_URL
-        value: http://talentpulse-job:10000
+        value: https://talentpulse-job.onrender.com
       - key: TALENTPULSE_CANDIDATE_URL
-        value: http://talentpulse-candidate:10000
+        value: https://talentpulse-candidate.onrender.com
       - key: TALENTPULSE_SCORING_URL
-        value: http://talentpulse-scoring:10000
+        value: https://talentpulse-scoring.onrender.com
       - key: TALENTPULSE_NOTIFICATION_URL
-        value: http://talentpulse-notification:10000
+        value: https://talentpulse-notification.onrender.com
 
   - type: web
     name: talentpulse-auth
@@ -133,6 +135,9 @@ services:
     envVars:
       - key: PORT
         value: "10000"
+      # JobClient fetches job skills when a candidate applies.
+      - key: TALENTPULSE_JOB_URL
+        value: https://talentpulse-job.onrender.com
       - key: DB_NAME
         fromDatabase:
           name: talentpulse-db
