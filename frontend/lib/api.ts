@@ -3,11 +3,19 @@ import { setAuthNotice } from "@/lib/auth-storage";
 function resolveApiBase(): string {
   const configured = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
   if (typeof window === "undefined") return configured;
+
   const host = window.location.hostname;
-  // When opening the UI via LAN IP, call the gateway on the same host (not localhost).
-  if (host !== "localhost" && host !== "127.0.0.1") {
+  const isPrivateIpv4 =
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+
+  // Only replace localhost for LAN testing. Public hosts (Vercel) must use the
+  // configured Render gateway URL baked in through NEXT_PUBLIC_API_URL.
+  if (isPrivateIpv4 && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(configured)) {
     return `${window.location.protocol}//${host}:8080`;
   }
+
   return configured;
 }
 
@@ -38,7 +46,11 @@ type AuthLike = {
 let refreshInFlight: Promise<string | null> | null = null;
 
 function friendlyNetworkMessage() {
-  return `Cannot reach API at ${resolveApiBase()}. Start Docker, then Auth (8081), Job (8082), Candidate (8083), Scoring (8084), Notification (8085), Gateway (8080).`;
+  const base = resolveApiBase();
+  const localHint = /localhost|127\.0\.0\.1|^http:\/\/10\.|^http:\/\/192\.168\.|^http:\/\/172\./.test(base)
+    ? " Start Docker and the backend services, then keep Gateway on port 8080."
+    : " The backend may be waking up; wait a minute and try again.";
+  return `Cannot reach API at ${base}.${localHint}`;
 }
 
 function hintForPath(path: string): string {
