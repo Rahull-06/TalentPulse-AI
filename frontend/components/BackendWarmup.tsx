@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { getApiBase } from "@/lib/api";
 
 /**
- * On production, ping the gateway warmup endpoint once so free-tier Render
- * services start spinning up as soon as someone opens the site.
+ * Production: nudge the gateway (and via warmup, all backends) as soon as
+ * someone opens the site. Never blocks UI; ignores CORS/network failures.
  */
 export function BackendWarmup() {
   const [message, setMessage] = useState<string | null>(null);
@@ -16,37 +16,29 @@ export function BackendWarmup() {
     if (/localhost|127\.0\.0\.1/.test(base)) return;
 
     let cancelled = false;
-    const started = Date.now();
+    setMessage("Starting servers… first open after idle can take about a minute.");
+
+    const hideSoon = () => {
+      window.setTimeout(() => {
+        if (!cancelled) setMessage(null);
+      }, 12_000);
+    };
 
     const run = async () => {
-      setMessage("Starting servers… first visit after idle can take about a minute.");
       try {
-        const res = await fetch(`${base}/api/v1/system/warmup`, {
+        // Gateway health first (fast once awake)
+        await fetch(`${base}/actuator/health`, {
           cache: "no-store",
-          signal: AbortSignal.timeout(120_000),
-        });
-        if (cancelled) return;
-        if (res.ok) {
-          const body = (await res.json()) as { ready?: boolean };
-          if (body.ready) {
-            setMessage(null);
-            return;
-          }
-        }
-        // Still useful — individual services may finish waking via page API retries.
-        if (Date.now() - started > 15_000) {
-          setMessage("Almost ready — finishing startup…");
-        }
-      } catch {
-        if (!cancelled) {
-          setMessage("Waking backend services…");
-        }
+          signal: AbortSignal.timeout(60_000),
+        }).catch(() => null);
+
+        // Kick all backends in parallel (fire-and-forget on server)
+        await fetch(`${base}/api/v1/system/warmup`, {
+          cache: "no-store",
+          signal: AbortSignal.timeout(30_000),
+        }).catch(() => null);
       } finally {
-        if (!cancelled) {
-          window.setTimeout(() => {
-            if (!cancelled) setMessage(null);
-          }, 8_000);
-        }
+        if (!cancelled) hideSoon();
       }
     };
 

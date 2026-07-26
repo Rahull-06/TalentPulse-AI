@@ -1,35 +1,44 @@
 # Keep Render free-tier services awake (they sleep after ~15m idle).
-# Runs every 12 minutes. Disable this workflow if you hit Render's
-# 750 free instance-hours/month limit (Dashboard → Billing).
+# Pings run in PARALLEL so the job finishes in ~1 minute, not 10+.
 #
-# True always-on without hour limits: upgrade services to Starter in Render.
+# Disable this workflow if you hit Render's 750 free instance-hours/month.
+# True always-on: upgrade services to Starter in Render.
 
 name: Keep Render awake
 
 on:
   schedule:
-    - cron: "*/12 * * * *"
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
-      - name: Wake all TalentPulse services
+      - name: Wake all TalentPulse services (parallel)
         shell: bash
         run: |
           set +e
           urls=(
             "https://talentpulse-gateway.onrender.com/actuator/health"
-            "https://talentpulse-gateway.onrender.com/api/v1/system/warmup"
-            "https://talentpulse-job.onrender.com/actuator/health"
             "https://talentpulse-auth.onrender.com/actuator/health"
+            "https://talentpulse-job.onrender.com/actuator/health"
             "https://talentpulse-candidate.onrender.com/actuator/health"
             "https://talentpulse-scoring.onrender.com/actuator/health"
             "https://talentpulse-notification.onrender.com/actuator/health"
+            "https://talentpulse-gateway.onrender.com/api/v1/system/warmup"
           )
-          for url in "${urls[@]}"; do
-            code=$(curl -sS -o /dev/null -w "%{http_code}" -m 120 "$url" || echo "000")
+
+          ping_one() {
+            local url="$1"
+            local code
+            code=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 15 -m 50 "$url" 2>/dev/null || echo "000")
             echo "$code  $url"
+          }
+
+          for url in "${urls[@]}"; do
+            ping_one "$url" &
           done
+          wait
+          echo "All wake pings finished."

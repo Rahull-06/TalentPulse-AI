@@ -221,7 +221,14 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 
     let message = extractMessage(data, res.status);
     if (res.status === 401) {
-      message = "Session expired. Please sign in again.";
+      if (path.startsWith("/api/v1/auth/login") || path.startsWith("/api/v1/auth/register")) {
+        message =
+          message && message !== "Request failed (401)" && message !== "Unauthorized"
+            ? message
+            : "Invalid email or password. If this is production, register a new account first.";
+      } else {
+        message = "Session expired. Please sign in again.";
+      }
     } else if (
       res.status === 500 ||
       res.status === 502 ||

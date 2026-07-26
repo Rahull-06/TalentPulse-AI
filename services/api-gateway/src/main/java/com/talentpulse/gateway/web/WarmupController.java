@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -13,10 +14,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * Wakes free-tier upstream services in parallel. Any HTTP response (including 401/500)
- * means the instance is up; only timeouts/connection errors count as still sleeping.
+ * Kicks free-tier upstream services awake. Returns immediately so Render's
+ * proxy / browsers never time out; pings continue in the background.
  */
 @RestController
+@CrossOrigin(originPatterns = {"https://*.vercel.app", "http://localhost:*", "http://127.0.0.1:*"})
 public class WarmupController {
 
     private final WebClient webClient;
@@ -41,25 +43,26 @@ public class WarmupController {
 
     @GetMapping(value = "/api/v1/system/warmup", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<Map<String, Object>> warmup() {
-        return Flux.fromIterable(targets)
-                .flatMap(target -> ping(target).map(status -> Map.entry(target.name(), status)))
-                .collectMap(Map.Entry::getKey, Map.Entry::getValue, LinkedHashMap::new)
-                .map(services -> {
-                    boolean ready = services.values().stream().noneMatch("down"::equals);
-                    Map<String, Object> body = new LinkedHashMap<>();
-                    body.put("ready", ready);
-                    body.put("services", services);
-                    return body;
-                });
+        // Fire-and-forget: do not block the HTTP response on cold starts.
+        Flux.fromIterable(targets)
+                .flatMap(this::ping)
+                .subscribe();
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("started", true);
+        body.put("services", targets.stream().map(NamedUrl::name).toList());
+        return Mono.just(body);
     }
 
     private Mono<String> ping(NamedUrl target) {
-        // Any HTTP response means the instance is awake (401/500 still count as up).
         return webClient.get()
                 .uri(target.baseUrl() + "/actuator/health")
                 .exchangeToMono(response -> response.releaseBody().thenReturn("up"))
                 .timeout(Duration.ofSeconds(90))
-                .onErrorReturn("down");
+                .onErrorReturn("down")
+                .doOnNext(status -> {
+                    // no-op; background wake only
+                });
     }
 
     private static String trimSlash(String url) {
