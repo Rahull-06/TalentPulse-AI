@@ -91,10 +91,22 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Render free services sleep after ~15m idle; cold start often returns 502. */
+/**
+ * Render free services sleep after ~15m idle and take 30-90s to cold start,
+ * returning 502/503/504 (or dropping the connection) until ready. Ride that
+ * out for ~2 minutes so users never see a raw error on the first visit.
+ */
+const COLD_START_MAX_RETRIES = 12;
+const COLD_START_DELAY_MS = 9_000;
+
 function shouldRetryColdStart(status: number, options: RequestOptions): boolean {
   if (options._coldRetries !== undefined && options._coldRetries <= 0) return false;
   return status === 502 || status === 503 || status === 504;
+}
+
+function emitWaking(waking: boolean) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(waking ? "tp:waking" : "tp:awake"));
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -172,13 +184,16 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       cache: "no-store",
     });
   } catch {
+    // Cold start often drops the connection before the app is listening.
     if (!isLocalApi() && !options.formData) {
-      const left = options._coldRetries ?? 4;
+      const left = options._coldRetries ?? COLD_START_MAX_RETRIES;
       if (left > 0) {
-        await sleep(Math.min(12_000, 2500 * (5 - left)));
+        emitWaking(true);
+        await sleep(COLD_START_DELAY_MS);
         return api<T>(path, { ...options, _coldRetries: left - 1 });
       }
     }
+    emitWaking(false);
     throw new ApiError(0, friendlyNetworkMessage());
   }
 
@@ -210,14 +225,20 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     }
   }
 
+  if (res.ok) {
+    emitWaking(false);
+  }
+
   if (!res.ok) {
     if (shouldRetryColdStart(res.status, options) && !options.formData) {
-      const left = options._coldRetries ?? 4;
+      const left = options._coldRetries ?? COLD_START_MAX_RETRIES;
       if (left > 0) {
-        await sleep(Math.min(12_000, 2500 * (5 - left)));
+        emitWaking(true);
+        await sleep(COLD_START_DELAY_MS);
         return api<T>(path, { ...options, _coldRetries: left - 1 });
       }
     }
+    emitWaking(false);
 
     let message = extractMessage(data, res.status);
     if (res.status === 401) {
