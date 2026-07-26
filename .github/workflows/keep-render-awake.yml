@@ -1,14 +1,21 @@
-# Keep Render free-tier services awake (they sleep after ~15m idle).
-# Pings run in PARALLEL so the job finishes in ~1 minute, not 10+.
+# Keep the Render gateway warm during demo hours.
 #
-# Disable this workflow if you hit Render's 750 free instance-hours/month.
-# True always-on: upgrade services to Starter in Render.
+# Budget math (Render free tier = 750 instance-hours per month, per workspace):
+#   6 services awake 24/7  = 6 x 720 = 4320 h  -> suspended in ~5 days  (BAD)
+#   gateway awake 12 h/day = 1 x 360 =  360 h  -> sustainable           (GOOD)
+#
+# So we only keep the GATEWAY warm. Backend services wake on demand when a
+# visitor loads the site (frontend calls /api/v1/system/warmup), which costs
+# hours only while someone is actually using the app.
+#
+# Window below is 06:00-17:59 UTC = 11:30 PM-11:29 PM IST daytime/evening.
+# Change or remove the schedule if you upgrade to a paid Render plan.
 
 name: Keep Render awake
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "*/10 6-17 * * *"
   workflow_dispatch:
 
 jobs:
@@ -16,29 +23,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Wake all TalentPulse services (parallel)
+      - name: Ping gateway
         shell: bash
         run: |
-          set +e
-          urls=(
-            "https://talentpulse-gateway.onrender.com/actuator/health"
-            "https://talentpulse-auth.onrender.com/actuator/health"
-            "https://talentpulse-job.onrender.com/actuator/health"
-            "https://talentpulse-candidate.onrender.com/actuator/health"
-            "https://talentpulse-scoring.onrender.com/actuator/health"
-            "https://talentpulse-notification.onrender.com/actuator/health"
-            "https://talentpulse-gateway.onrender.com/api/v1/system/warmup"
-          )
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            --connect-timeout 15 -m 90 \
+            "https://talentpulse-gateway.onrender.com/actuator/health" || echo "000")
+          echo "gateway health: $code"
 
-          ping_one() {
-            local url="$1"
-            local code
-            code=$(curl -sS -o /dev/null -w "%{http_code}" --connect-timeout 15 -m 50 "$url" 2>/dev/null || echo "000")
-            echo "$code  $url"
-          }
-
-          for url in "${urls[@]}"; do
-            ping_one "$url" &
-          done
-          wait
-          echo "All wake pings finished."
+      - name: Wake backends (manual runs only)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            --connect-timeout 15 -m 90 \
+            "https://talentpulse-gateway.onrender.com/api/v1/system/warmup" || echo "000")
+          echo "warmup kick: $code"

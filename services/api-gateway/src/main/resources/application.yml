@@ -13,34 +13,8 @@ spring:
           default-filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
 
-          globalcors:
-            add-to-simple-url-handler-mapping: true
-            cors-configurations:
-              '[/**]':
-                allowedOriginPatterns:
-                  - "http://localhost:*"
-                  - "http://127.0.0.1:*"
-                  - "https://*.vercel.app"
-                  # LAN access (phone / other PC on same Wi‑Fi)
-                  - "http://192.168.*.*:*"
-                  - "http://10.*.*.*:*"
-                  - "http://172.16.*.*:*"
-                  - "http://172.17.*.*:*"
-                  - "http://172.18.*.*:*"
-                  - "http://172.19.*.*:*"
-                  - "http://172.2*.*.*:*"
-                  - "http://172.30.*.*:*"
-                  - "http://172.31.*.*:*"
-                allowedMethods:
-                  - GET
-                  - POST
-                  - PUT
-                  - PATCH
-                  - DELETE
-                  - OPTIONS
-                allowedHeaders: "*"
-                allowCredentials: true
-                maxAge: 3600
+          # CORS is handled by CorsConfig (CorsWebFilter) so gateway routes and
+          # gateway-owned controllers share one policy.
 
           routes:
             - id: auth-service
