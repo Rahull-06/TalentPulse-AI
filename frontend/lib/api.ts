@@ -34,6 +34,8 @@ type RequestOptions = {
   formData?: FormData;
   /** Internal: skip refresh retry to avoid loops */
   _retried?: boolean;
+  /** Internal: remaining cold-start retries for 502/503/504 */
+  _coldRetries?: number;
 };
 
 type AuthLike = {
@@ -53,7 +55,16 @@ function friendlyNetworkMessage() {
   return `Cannot reach API at ${base}.${localHint}`;
 }
 
+function isLocalApi(): boolean {
+  return /localhost|127\.0\.0\.1|^http:\/\/10\.|^http:\/\/192\.168\.|^http:\/\/172\./.test(
+    resolveApiBase()
+  );
+}
+
 function hintForPath(path: string): string {
+  if (!isLocalApi()) {
+    return "Backend is waking up (free hosting sleeps when idle). Wait about a minute and refresh.";
+  }
   if (path.startsWith("/api/v1/notifications")) {
     return "Start Notification service on 8085 (and keep Gateway on 8080).";
   }
@@ -74,6 +85,16 @@ function hintForPath(path: string): string {
     return "Start Auth service on 8081 (and keep Gateway on 8080).";
   }
   return "Check Gateway (8080) and the matching backend service.";
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Render free services sleep after ~15m idle; cold start often returns 502. */
+function shouldRetryColdStart(status: number, options: RequestOptions): boolean {
+  if (options._coldRetries !== undefined && options._coldRetries <= 0) return false;
+  return status === 502 || status === 503 || status === 504;
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -183,6 +204,14 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
   }
 
   if (!res.ok) {
+    if (shouldRetryColdStart(res.status, options) && !options.formData) {
+      const left = options._coldRetries ?? 4;
+      if (left > 0) {
+        await sleep(Math.min(12_000, 2500 * (5 - left)));
+        return api<T>(path, { ...options, _coldRetries: left - 1 });
+      }
+    }
+
     let message = extractMessage(data, res.status);
     if (res.status === 401) {
       message = "Session expired. Please sign in again.";
