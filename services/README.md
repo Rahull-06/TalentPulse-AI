@@ -1,149 +1,183 @@
-# TalentPulse services
+# TalentPulse — Backend Services
 
-Six independent **Spring Boot** apps. The **frontend talks only to the API Gateway** (`8080`). Other services are internal (gateway routes + RabbitMQ events).
+Java **21** / **Spring Boot 3.5** microservices for an AI-assisted hiring platform.  
+The browser talks **only** to the API Gateway. Everything else is routed or event-driven.
+
+---
+
+## Architecture (short)
 
 ```text
-Browser ──► api-gateway :8080
-               │
-               ├── auth-service         :8081
-               ├── job-service          :8082
-               ├── candidate-service    :8083
-               ├── scoring-service      :8084
-               └── notification-service :8085
-
-Postgres (per-service DBs) · RabbitMQ (async events)
+                    ┌─────────────────────────────────────┐
+   Next.js (Vercel) │  api-gateway  :8080                  │
+                    │  CORS · routing · warmup             │
+                    └──────────────┬──────────────────────┘
+           ┌───────────┬───────────┼───────────┬───────────┐
+           ▼           ▼           ▼           ▼           ▼
+        auth:8081   job:8082  candidate:8083 scoring:8084  notification:8085
+           │           │           │           │              │
+           └───────────┴──── PostgreSQL (Flyway) ─────────────┘
+                                 │
+                            RabbitMQ
+              (application.created → score → inbox)
 ```
+
+| Principle | How we applied it |
+|---|---|
+| **Single entry** | UI → Gateway only (`NEXT_PUBLIC_API_URL`) |
+| **Bounded contexts** | One deployable service per domain |
+| **Async where it hurts sync** | Apply → score → notify via RabbitMQ |
+| **Shared auth contract** | Same JWT secret; each service validates locally |
+| **Schema ownership** | Flyway migrations per service DB / schema |
 
 ---
 
 ## Service map
 
-| Service | Port | Responsibility | Public API prefix |
+| Service | Port | Owns | API |
 |---|---:|---|---|
-| **api-gateway** | 8080 | Routing, CORS, single UI entry | `/api/v1/**` |
-| **auth-service** | 8081 | Register, login, refresh, password reset | `/api/v1/auth/**` |
-| **job-service** | 8082 | Job CRUD, publish, openings / capacity | `/api/v1/jobs/**` |
-| **candidate-service** | 8083 | Candidate profile, resume, applications | `/api/v1/candidates/**`, `/api/v1/applications/**`, `/api/v1/jobs/*/applications` |
-| **scoring-service** | 8084 | Fit score, matched / missing skills, interview hints | `/api/v1/scoring/**` |
+| **api-gateway** | 8080 | Routing, CORS, `/system/warmup` | `/api/v1/**` |
+| **auth-service** | 8081 | Users, roles, JWT, password reset | `/api/v1/auth/**` |
+| **job-service** | 8082 | Jobs, publish, openings | `/api/v1/jobs/**` |
+| **candidate-service** | 8083 | Profile, PDF resume, applications | `/api/v1/candidates/**`, `/api/v1/applications/**` |
+| **scoring-service** | 8084 | Fit score, skill match/gap, interview hints | `/api/v1/scoring/**` |
 | **notification-service** | 8085 | In-app inbox | `/api/v1/notifications/**` |
-
-Shared JWT secret is configured under `talentpulse.security.jwt` in each service that validates tokens.
 
 ---
 
-## What each service owns
+## How a hire flow works
 
-### api-gateway
-- Spring Cloud Gateway (WebFlux)
-- Forwards `Authorization` to downstream services
-- CORS for `localhost` and private LAN origins (local/dev)
+```text
+1. Recruiter publishes a job          → job-service
+2. Candidate uploads PDF resume       → candidate-service (PDFBox parse + skills)
+3. Candidate applies                  → candidate-service
+4. Event: application.created         → RabbitMQ
+5. scoring-service scores             → rule-based (+ Gemini if GEMINI_API_KEY set)
+6. Event: score.completed             → candidate + notification
+7. Recruiter sees fit % & skill gaps  → decides select / reject
+```
 
-### auth-service
-- Users, roles (`CANDIDATE`, `RECRUITER`, `ADMIN`)
-- Access + refresh tokens
-- Forgot / reset password (reset **link**, not OTP)
+Recruiters stay in control — AI/rules **rank and explain**; they don’t auto-hire.
 
-### job-service
-- Job posts (draft / published / closed)
-- Openings and max applicants
-- Recruiter pipeline data source for listings
+---
 
-### candidate-service
-- Profile + resume upload
-- Apply to jobs (enforces capacity)
-- Application status history
-- Publishes `application-created` events
+## What each service does (1 line)
 
-### scoring-service
-- Consumes application events
-- Computes fit score + skill gaps
-- Publishes score-completed events
-
-### notification-service
-- Consumes user / application / status / score events
-- Inbox APIs (list, unread count, mark read)
+- **api-gateway** — Spring Cloud Gateway (WebFlux); path-based routes to the five backends.
+- **auth-service** — Register / login / refresh; roles `CANDIDATE`, `RECRUITER`, `ADMIN`.
+- **job-service** — Draft → publish → close; capacity (openings / applicants).
+- **candidate-service** — Profile, PDF-only resume store + parse, apply, rescore on re-upload.
+- **scoring-service** — Matched / missing skills + fit score; optional Gemini AI.
+- **notification-service** — Inbox from domain events (apply, status, score).
 
 ---
 
 ## Events (RabbitMQ)
 
-High-level flow after a candidate applies:
+| Routing key | Publisher | Consumers |
+|---|---|---|
+| `user.registered` | auth | notification |
+| `application.created` | candidate | scoring, notification |
+| `score.completed` | scoring | candidate, notification |
+| `application.status-changed` | candidate | notification |
 
-```text
-candidate-service ──application-created──► scoring-service
-                                       └─► notification-service
+Details: [`docs/architecture/events.md`](../docs/architecture/events.md)
 
-scoring-service ──score-completed──► candidate-service
-                                  └─► notification-service
+---
 
-job/candidate status changes ──► notification-service
-```
+## Stack & standards
 
-Queue names and contracts: [docs/architecture/events.md](../docs/architecture/events.md)
+| Area | Choice |
+|---|---|
+| Runtime | Java 21, Spring Boot 3.5.x |
+| Gateway | Spring Cloud Gateway (WebFlux) |
+| Persistence | PostgreSQL + Flyway + JPA |
+| Messaging | Spring AMQP / RabbitMQ |
+| Security | JWT (access + refresh), shared secret |
+| Docs API | springdoc OpenAPI per service |
+| Packaging | Docker (multi-stage Maven → JRE) |
 
 ---
 
 ## Local run
 
-**Infra** (from repo root):
+**1. Infra** (Postgres + RabbitMQ):
 
 ```powershell
 docker compose up -d
 ```
 
-**All six services** (Windows helper):
+**2. All services** (Windows):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\start-core-backend.ps1
 ```
 
-Or one terminal per service (use **JDK 22**):
+**3. Or one service:**
 
 ```powershell
-$env:JAVA_HOME = 'C:\Program Files\Java\jdk-22'
 mvn -f services\auth-service\pom.xml spring-boot:run
-mvn -f services\job-service\pom.xml spring-boot:run
-mvn -f services\candidate-service\pom.xml spring-boot:run
-mvn -f services\scoring-service\pom.xml spring-boot:run
-mvn -f services\notification-service\pom.xml spring-boot:run
-mvn -f services\api-gateway\pom.xml spring-boot:run
 ```
 
-After Rabbit listener / DTO fixes, purge poison messages and restart event services:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\restart-event-services.ps1
-```
+Health: `http://localhost:8080/actuator/health`  
+Gateway must be up for the frontend (`http://localhost:3000`).
 
 ---
 
 ## Build
 
-Each service is a normal Maven module:
-
 ```powershell
-mvn -f services\auth-service\pom.xml clean package -DskipTests
+mvn -f services\<name>\pom.xml clean package -DskipTests
 ```
 
-Repeat for `job-service`, `candidate-service`, `scoring-service`, `notification-service`, `api-gateway`.
+Docker (from repo root):
+
+```powershell
+docker build -f services\api-gateway\Dockerfile .
+```
 
 ---
 
-## Config tips
+## Production (Render)
 
-| Topic | Note |
+| Piece | Where |
 |---|---|
-| Databases | Created by `infra/docker/init-databases.sql` via Compose |
-| JWT | Same signing secret across services that verify tokens |
-| Java version | Project targets **21**; prefer **JDK 22** locally (Java 25 can break Lombok) |
-| Frontend URL | Auth password-reset links use configured frontend base URL |
+| Blueprint | [`render.yaml`](../render.yaml) |
+| Gateway URL | `https://talentpulse-gateway.onrender.com` |
+| Frontend | Vercel → `NEXT_PUBLIC_API_URL=<gateway>` |
+| Broker | CloudAMQP (env: `RABBITMQ_*`) |
+| DB | Render Postgres (shared instance; per-service `DB_NAME`) |
 
-Per-service design notes live under [`docs/architecture/`](../docs/architecture/).
+**Notes we learned shipping this:**
+
+- Free web services **cannot receive private network traffic** → gateway uses public `*.onrender.com` URLs.
+- Free services **sleep after ~15 min idle** → GitHub Action keep-alive + `/api/v1/system/warmup`.
+- Resume files need a **writable dir** (`TALENTPULSE_RESUME_DIR`); parsed text lives in Postgres.
 
 ---
 
-## Production
+## Folder layout
 
-Gateway is the only service that should be public. Auth / Job / Candidate / Scoring / Notification stay private (Render private network, Docker network, or VPC).
+```text
+services/
+├── api-gateway/
+├── auth-service/
+├── job-service/
+├── candidate-service/
+├── scoring-service/
+├── notification-service/
+└── README.md          ← you are here
+```
 
-See [docs/deployment/production.md](../docs/deployment/production.md).
+Each service: `src/main/java` · `application.yml` · `db/migration` (if DB) · `Dockerfile`.
+
+---
+
+## Related docs
+
+| Doc | Purpose |
+|---|---|
+| [Root README](../README.md) | Full monorepo overview |
+| [Local run](../docs/deployment/local-run.md) | Step-by-step local |
+| [Production](../docs/deployment/production.md) | Vercel + Render |
+| [Architecture](../docs/architecture/) | Deeper design notes |
