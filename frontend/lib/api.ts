@@ -172,6 +172,13 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
       cache: "no-store",
     });
   } catch {
+    if (!isLocalApi() && !options.formData) {
+      const left = options._coldRetries ?? 4;
+      if (left > 0) {
+        await sleep(Math.min(12_000, 2500 * (5 - left)));
+        return api<T>(path, { ...options, _coldRetries: left - 1 });
+      }
+    }
     throw new ApiError(0, friendlyNetworkMessage());
   }
 

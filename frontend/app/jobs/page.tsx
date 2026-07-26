@@ -73,7 +73,9 @@ export default function JobsPage() {
 
         <div className="mt-8">
           {loading ? (
-            <p className="tp-muted text-sm">Loading roles…</p>
+            <p className="tp-muted text-sm">
+              Loading roles… if this is the first visit after a while, servers may take up to a minute to wake.
+            </p>
           ) : jobs.length === 0 && !error ? (
             <EmptyState
               title="No published roles yet"

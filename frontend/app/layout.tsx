@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Syne } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import { BackendWarmup } from "@/components/BackendWarmup";
 import "./globals.css";
 
 const syne = Syne({
@@ -29,7 +30,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${syne.variable} ${manrope.variable} antialiased`}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <BackendWarmup />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

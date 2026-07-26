@@ -384,6 +384,19 @@ select {
   color: var(--success);
 }
 
+.tp-warmup {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  padding: 0.55rem 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--accent);
+  background: linear-gradient(135deg, rgba(230, 239, 235, 0.95), rgba(251, 250, 247, 0.98));
+  border-bottom: 1px solid rgba(30, 61, 54, 0.12);
+}
+
 /* Calm inline notice (session ended, tips) — not a danger alert */
 .tp-notice {
   margin-top: 0;
