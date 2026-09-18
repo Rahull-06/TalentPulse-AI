@@ -17,6 +17,9 @@ services:
     region: oregon
     dockerfilePath: ./services/api-gateway/Dockerfile
     dockerContext: .
+    watchPaths:
+      - services/api-gateway/**
+      - infra/docker/**
     healthCheckPath: /actuator/health
     envVars:
       - key: PORT
@@ -41,6 +44,9 @@ services:
     region: oregon
     dockerfilePath: ./services/auth-service/Dockerfile
     dockerContext: .
+    watchPaths:
+      - services/auth-service/**
+      - infra/docker/**
     envVars:
       - key: PORT
         value: "10000"
@@ -86,6 +92,9 @@ services:
     region: oregon
     dockerfilePath: ./services/job-service/Dockerfile
     dockerContext: .
+    watchPaths:
+      - services/job-service/**
+      - infra/docker/**
     envVars:
       - key: PORT
         value: "10000"
@@ -132,6 +141,9 @@ services:
     region: oregon
     dockerfilePath: ./services/candidate-service/Dockerfile
     dockerContext: .
+    watchPaths:
+      - services/candidate-service/**
+      - infra/docker/**
     envVars:
       - key: PORT
         value: "10000"
@@ -184,6 +196,9 @@ services:
     region: oregon
     dockerfilePath: ./services/scoring-service/Dockerfile
     dockerContext: .
+    watchPaths:
+      - services/scoring-service/**
+      - infra/docker/**
     envVars:
       - key: PORT
         value: "10000"
@@ -230,6 +245,9 @@ services:
     region: oregon
     dockerfilePath: ./services/notification-service/Dockerfile
     dockerContext: .
+    watchPaths:
+      - services/notification-service/**
+      - infra/docker/**
     envVars:
       - key: PORT
         value: "10000"
