@@ -12,6 +12,7 @@ spring:
           # Forward Authorization as-is (JWT validated by each service)
           default-filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+            - RemoveRequestHeader=Host
 
           # CORS is handled by CorsConfig (CorsWebFilter) so gateway routes and
           # gateway-owned controllers share one policy.
